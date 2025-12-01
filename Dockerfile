@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the Go application
-RUN CGO_ENABLED=0 go build -o rag cmd/rag/main.go
+RUN CGO_ENABLED=0 go build -o server cmd/cao-server/main.go
 
 FROM alpine:latest
 
@@ -23,10 +23,13 @@ RUN apk add --no-cache ca-certificates
 WORKDIR /app
 
 # Copy the built Go binary from the builder stage
-COPY --from=builder /app/rag .
+COPY --from=builder /app/server .
+
+# Copy the static templates directory
+COPY --from=builder /app/cmd/cao-server/templates ./cmd/cao-server/templates
 
 # Expose the application port
 EXPOSE 8080
 
 # Command to run the application
-CMD ["./rag"]
+CMD ["./server"]

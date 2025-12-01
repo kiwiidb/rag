@@ -159,9 +159,8 @@
         .input-row {
             display: flex;
             gap: 10px;
-            margin-bottom: 10px;
         }
-        input, select {
+        input {
             padding: 12px;
             border: 1px solid #ddd;
             border-radius: 8px;
@@ -170,9 +169,6 @@
         }
         #queryInput {
             flex: 1;
-        }
-        #storeSelect {
-            min-width: 200px;
         }
         button {
             padding: 12px 24px;
@@ -226,9 +222,6 @@
 
             <div class="input-container">
                 <div class="input-row">
-                    <select id="storeSelect">
-                        <option value="cao-documents">cao-documents</option>
-                    </select>
                     <input
                         type="text"
                         id="queryInput"
@@ -244,23 +237,8 @@
     <script>
         const messagesDiv = document.getElementById('messages');
         const queryInput = document.getElementById('queryInput');
-        const storeSelect = document.getElementById('storeSelect');
         const sendBtn = document.getElementById('sendBtn');
         const loading = document.getElementById('loading');
-
-        // Load stores on page load
-        fetch('/stores')
-            .then(r => r.json())
-            .then(stores => {
-                storeSelect.innerHTML = '';
-                stores.forEach(store => {
-                    const option = document.createElement('option');
-                    option.value = store.Name;
-                    option.textContent = store.DisplayName;
-                    storeSelect.appendChild(option);
-                });
-            })
-            .catch(err => console.error('Failed to load stores:', err));
 
         // Handle Enter key
         queryInput.addEventListener('keypress', (e) => {
@@ -302,7 +280,6 @@
 
         async function sendQuery() {
             const query = queryInput.value.trim();
-            const storeName = storeSelect.value;
 
             if (!query) return;
 
@@ -316,7 +293,7 @@
                 const response = await fetch('/query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, storeName })
+                    body: JSON.stringify({ query, storeName: 'cao-documents' })
                 });
 
                 const data = await response.json();
