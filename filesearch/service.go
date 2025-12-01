@@ -144,6 +144,7 @@ func (s *Service) ListDocuments(ctx context.Context, storeName string) ([]*Docum
 func (s *Service) UploadDocument(ctx context.Context, reader io.Reader, fileName string, storeName string) (*Document, error) {
 	_, err := s.client.FileSearchStores.UploadToFileSearchStore(ctx, reader, storeName, &genai.UploadToFileSearchStoreConfig{
 		DisplayName: fileName,
+		MIMEType:    "application/pdf", // Default to PDF, could be parameterized if needed
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload document: %w", err)

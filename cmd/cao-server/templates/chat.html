@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CAO Query Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+            color: #333;
+            padding: 20px;
+        }
+        .header h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .header p {
+            opacity: 0.6;
+            font-size: 13px;
+        }
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            overflow: hidden;
+        }
+        .chat-container {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .message {
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.user {
+            text-align: right;
+        }
+        .message-content {
+            display: inline-block;
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            word-wrap: break-word;
+        }
+        .message.user .message-content {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #e0e0e0;
+        }
+        .message.assistant .message-content {
+            background: #fafafa;
+            color: #333;
+            text-align: left;
+            border: 1px solid #e8e8e8;
+        }
+        .message.error .message-content {
+            background: #fff5f5;
+            color: #d32f2f;
+            border: 1px solid #ffcdd2;
+        }
+        .message-content h1,
+        .message-content h2,
+        .message-content h3 {
+            margin-top: 0.5em;
+            margin-bottom: 0.3em;
+        }
+        .message-content p {
+            margin-bottom: 0.5em;
+        }
+        .message-content ul,
+        .message-content ol {
+            margin-left: 1.5em;
+            margin-bottom: 0.5em;
+        }
+        .message-content code {
+            background: rgba(0,0,0,0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .message-content pre {
+            background: rgba(0,0,0,0.1);
+            padding: 8px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-bottom: 0.5em;
+        }
+        .message-content pre code {
+            background: none;
+            padding: 0;
+        }
+        .message-content strong {
+            font-weight: 600;
+        }
+        .message-content em {
+            font-style: italic;
+        }
+        .message-content a {
+            color: #555;
+            text-decoration: underline;
+        }
+        .sources {
+            margin-top: 12px;
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        .sources-title {
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #666;
+        }
+        .source-item {
+            background: rgba(0,0,0,0.04);
+            padding: 3px 8px;
+            border-radius: 3px;
+            display: inline-block;
+            margin: 2px;
+            color: #666;
+        }
+        .input-container {
+            border-top: 1px solid #e0e0e0;
+            padding: 20px;
+            background: white;
+        }
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        input, select {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        #queryInput {
+            flex: 1;
+        }
+        #storeSelect {
+            min-width: 200px;
+        }
+        button {
+            padding: 12px 24px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 400;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #555;
+        }
+        button:disabled {
+            background: #ddd;
+            color: #999;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            color: #666;
+        }
+        .loading.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CAO Documentatie</h1>
+        <p>Stel vragen over CAO-documenten in natuurlijke taal</p>
+    </div>
+
+    <div class="container">
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message assistant">
+                    <div class="message-content">
+                        Hallo! Ik kan je helpen om informatie te vinden in CAO-documenten. Stel me alles over arbeidsregels, minimumlonen, werkuren en meer.
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading" id="loading">
+                <span>Documenten doorzoeken...</span>
+            </div>
+
+            <div class="input-container">
+                <div class="input-row">
+                    <select id="storeSelect">
+                        <option value="cao-documents">cao-documents</option>
+                    </select>
+                    <input
+                        type="text"
+                        id="queryInput"
+                        placeholder="Stel een vraag... (bijv., Wat is het minimumloon als je 17 jaar bent?)"
+                        autocomplete="off"
+                    >
+                    <button onclick="sendQuery()" id="sendBtn">Verstuur</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const queryInput = document.getElementById('queryInput');
+        const storeSelect = document.getElementById('storeSelect');
+        const sendBtn = document.getElementById('sendBtn');
+        const loading = document.getElementById('loading');
+
+        // Load stores on page load
+        fetch('/stores')
+            .then(r => r.json())
+            .then(stores => {
+                storeSelect.innerHTML = '';
+                stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store.Name;
+                    option.textContent = store.DisplayName;
+                    storeSelect.appendChild(option);
+                });
+            })
+            .catch(err => console.error('Failed to load stores:', err));
+
+        // Handle Enter key
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendQuery();
+        });
+
+        function addMessage(content, type, sources = []) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + type;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            // Render markdown for assistant messages, plain text for user messages
+            if (type === 'assistant' || type === 'error') {
+                contentDiv.innerHTML = marked.parse(content);
+            } else {
+                contentDiv.textContent = content;
+            }
+
+            messageDiv.appendChild(contentDiv);
+
+            if (sources && sources.length > 0) {
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'sources';
+                sourcesDiv.innerHTML = '<div class="sources-title">Bronnen:</div>';
+                sources.forEach(source => {
+                    const sourceSpan = document.createElement('span');
+                    sourceSpan.className = 'source-item';
+                    sourceSpan.textContent = source;
+                    sourcesDiv.appendChild(sourceSpan);
+                });
+                messageDiv.appendChild(sourcesDiv);
+            }
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function sendQuery() {
+            const query = queryInput.value.trim();
+            const storeName = storeSelect.value;
+
+            if (!query) return;
+
+            // Add user message
+            addMessage(query, 'user');
+            queryInput.value = '';
+            sendBtn.disabled = true;
+            loading.classList.add('active');
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, storeName })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    addMessage('Fout: ' + data.error, 'error');
+                } else {
+                    addMessage(data.answer || 'Geen antwoord beschikbaar', 'assistant', data.sources);
+                }
+            } catch (error) {
+                addMessage('Kon geen antwoord ophalen: ' + error.message, 'error');
+            } finally {
+                sendBtn.disabled = false;
+                loading.classList.remove('active');
+                queryInput.focus();
+            }
+        }
+
+        // Focus input on load
+        queryInput.focus();
+    </script>
+</body>
+</html>

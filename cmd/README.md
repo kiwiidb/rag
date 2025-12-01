@@ -76,6 +76,63 @@ go build -o cao-querier cmd/cao-querier/main.go
 
 ---
 
+### cao-server
+
+HTTP server that provides a REST API for querying CAO documents.
+
+**Usage:**
+```bash
+go run cmd/cao-server/main.go
+```
+
+Or build and run:
+```bash
+go build -o cao-server cmd/cao-server/main.go
+./cao-server
+```
+
+**What it does:**
+1. Starts an HTTP server (default port 8080)
+2. Provides REST API endpoints for querying documents
+3. Lists available stores and documents
+4. Serves an HTML documentation page at the root
+
+**Environment Variables:**
+- `GEMINI_API_KEY` - Required. Your Gemini API key
+- `PORT` - Optional. Server port (default: 8080)
+
+**Endpoints:**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/query` | Query documents in a store |
+| GET | `/stores` | List all available stores |
+| GET | `/documents?storeName=NAME` | List documents in a store |
+| GET | `/health` | Health check endpoint |
+| GET | `/` | API documentation page |
+
+**Example Query:**
+```bash
+curl -X POST http://localhost:8080/query \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "Wat is het minimumloon als je 17 jaar bent?",
+    "storeName": "cao-documents"
+  }'
+```
+
+**Response:**
+```json
+{
+  "answer": "The minimum wage for 17 year olds is...",
+  "sources": ["document1.pdf", "document2.pdf"],
+  "citations": [...],
+  "groundingSupport": {...}
+}
+```
+
+---
+
 ## Quick Start
 
 1. **Set your API key:**
@@ -88,25 +145,33 @@ go build -o cao-querier cmd/cao-querier/main.go
    go run cmd/cao-uploader/main.go
    ```
 
-3. **Query documents:**
+3. **Query documents (CLI):**
    ```bash
    go run cmd/cao-querier/main.go "Wat is het minimumloon als je 17 jaar bent?"
+   ```
+
+   **OR start the server:**
+   ```bash
+   go run cmd/cao-server/main.go
+   # Then visit http://localhost:8080
    ```
 
 ---
 
 ## Building Binaries
 
-Build both tools:
+Build all tools:
 ```bash
 go build -o cao-uploader cmd/cao-uploader/main.go
 go build -o cao-querier cmd/cao-querier/main.go
+go build -o cao-server cmd/cao-server/main.go
 ```
 
 Or build all at once:
 ```bash
 go build -o cao-uploader ./cmd/cao-uploader
 go build -o cao-querier ./cmd/cao-querier
+go build -o cao-server ./cmd/cao-server
 ```
 
 ---

@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	baseURL       = "https://public-search.werk.belgie.be"
-	apiPrefix     = "/website-service/joint-work-convention"
-	searchURL     = baseURL + apiPrefix + "/search"
-	documentBase  = baseURL + apiPrefix
+	baseURL          = "https://public-search.werk.belgie.be"
+	searchPrefix     = "/website-service/joint-work-convention"
+	downloadPrefix   = "/website-download-service/joint-work-convention"
+	searchURL        = baseURL + searchPrefix + "/search"
+	documentBase     = baseURL + downloadPrefix
 )
 
 // SearchRequest represents the search parameters
@@ -164,7 +165,22 @@ func (c *Client) Search(jc *int) ([]string, error) {
 
 // DownloadDocument downloads a document from the given URL and returns it as an io.Reader
 func (c *Client) DownloadDocument(url string) (io.Reader, error) {
-	resp, err := c.httpClient.Get(url)
+	// Create request with proper headers
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Add headers to match browser behavior
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:144.0) Gecko/20100101 Firefox/144.0")
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.5")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br, zstd")
+	req.Header.Set("Referer", "https://public-search.werk.belgie.be/website/")
+	req.Header.Set("Origin", "https://public-search.werk.belgie.be")
+	req.Header.Set("Connection", "keep-alive")
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download document: %w", err)
 	}
