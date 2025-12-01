@@ -5,16 +5,29 @@ import (
 	"net/http"
 )
 
+// HistoryMessage represents a single message in the conversation history
+type HistoryMessage struct {
+	Role    string `json:"role"`    // "user" or "assistant"
+	Content string `json:"content"` // The message content
+}
+
 // QueryRequest represents the incoming query request
 type QueryRequest struct {
-	Query     string `json:"query"`
-	StoreName string `json:"storeName"`
+	Query     string            `json:"query"`
+	StoreName string            `json:"storeName"`
+	History   []HistoryMessage  `json:"history,omitempty"` // Optional conversation history
+}
+
+// SourceDocument represents a source document with its URI
+type SourceDocument struct {
+	FileName string `json:"fileName"`
+	URI      string `json:"uri"`
 }
 
 // QueryResponse represents the response to a query
 type QueryResponse struct {
 	Answer           string            `json:"answer"`
-	Sources          []string          `json:"sources"`
+	Sources          []*SourceDocument `json:"sources"`
 	Citations        []*Citation       `json:"citations,omitempty"`
 	GroundingSupport *GroundingSupport `json:"groundingSupport,omitempty"`
 	Error            string            `json:"error,omitempty"`
@@ -69,8 +82,18 @@ func (h *Handler) Query(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute query
-	resp, err := h.service.Prompt(r.Context(), req.Query, req.StoreName)
+	// Get the store by display name to get the actual store name
+	store, err := h.service.GetStoreByName(r.Context(), req.StoreName)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(QueryResponse{
+			Error: "Store not found: " + err.Error(),
+		})
+		return
+	}
+
+	// Execute query with the actual store name (not display name) and conversation history
+	resp, err := h.service.PromptWithHistory(r.Context(), req.Query, store.Name, req.History)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(QueryResponse{
@@ -90,13 +113,16 @@ func (h *Handler) Query(w http.ResponseWriter, r *http.Request) {
 		response.Answer += part
 	}
 
-	// Extract unique source file names
+	// Extract unique source file names with URIs
 	seenSources := make(map[string]bool)
 	if resp.GroundingSupport != nil {
 		for _, chunk := range resp.GroundingSupport.GroundingChunks {
 			if chunk.File != nil && !seenSources[chunk.File.FileName] {
 				seenSources[chunk.File.FileName] = true
-				response.Sources = append(response.Sources, chunk.File.FileName)
+				response.Sources = append(response.Sources, &SourceDocument{
+					FileName: chunk.File.FileName,
+					URI:      chunk.File.URI,
+				})
 			}
 		}
 	}

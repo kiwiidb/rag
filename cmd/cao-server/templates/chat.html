@@ -151,6 +151,15 @@
             margin: 2px;
             color: #666;
         }
+        .source-link {
+            text-decoration: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .source-link:hover {
+            background: rgba(0,0,0,0.08);
+            color: #333;
+        }
         .input-container {
             border-top: 1px solid #e0e0e0;
             padding: 20px;
@@ -240,6 +249,9 @@
         const sendBtn = document.getElementById('sendBtn');
         const loading = document.getElementById('loading');
 
+        // Store conversation history
+        const conversationHistory = [];
+
         // Handle Enter key
         queryInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendQuery();
@@ -266,10 +278,20 @@
                 sourcesDiv.className = 'sources';
                 sourcesDiv.innerHTML = '<div class="sources-title">Bronnen:</div>';
                 sources.forEach(source => {
-                    const sourceSpan = document.createElement('span');
-                    sourceSpan.className = 'source-item';
-                    sourceSpan.textContent = source;
-                    sourcesDiv.appendChild(sourceSpan);
+                    if (source.uri) {
+                        const sourceLink = document.createElement('a');
+                        sourceLink.className = 'source-item source-link';
+                        sourceLink.href = source.uri;
+                        sourceLink.target = '_blank';
+                        sourceLink.rel = 'noopener noreferrer';
+                        sourceLink.textContent = source.fileName;
+                        sourcesDiv.appendChild(sourceLink);
+                    } else {
+                        const sourceSpan = document.createElement('span');
+                        sourceSpan.className = 'source-item';
+                        sourceSpan.textContent = source.fileName || source;
+                        sourcesDiv.appendChild(sourceSpan);
+                    }
                 });
                 messageDiv.appendChild(sourcesDiv);
             }
@@ -283,7 +305,8 @@
 
             if (!query) return;
 
-            // Add user message
+            // Add user message to history and display
+            conversationHistory.push({ role: 'user', content: query });
             addMessage(query, 'user');
             queryInput.value = '';
             sendBtn.disabled = true;
@@ -293,18 +316,29 @@
                 const response = await fetch('/query', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query, storeName: 'cao-documents' })
+                    body: JSON.stringify({
+                        query,
+                        storeName: 'cao-documents',
+                        history: conversationHistory.slice(0, -1) // Send history without current query
+                    })
                 });
 
                 const data = await response.json();
 
                 if (data.error) {
                     addMessage('Fout: ' + data.error, 'error');
+                    // Remove the failed query from history
+                    conversationHistory.pop();
                 } else {
-                    addMessage(data.answer || 'Geen antwoord beschikbaar', 'assistant', data.sources);
+                    const answer = data.answer || 'Geen antwoord beschikbaar';
+                    addMessage(answer, 'assistant', data.sources);
+                    // Add assistant response to history
+                    conversationHistory.push({ role: 'assistant', content: answer });
                 }
             } catch (error) {
                 addMessage('Kon geen antwoord ophalen: ' + error.message, 'error');
+                // Remove the failed query from history
+                conversationHistory.pop();
             } finally {
                 sendBtn.disabled = false;
                 loading.classList.remove('active');

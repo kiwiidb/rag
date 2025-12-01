@@ -201,7 +201,7 @@ type FileGroundingChunk struct {
 	URI      string
 }
 
-// Prompt sends a prompt to the model with access to the specified store
+// Prompt sends a prompt to the model with access to the specified store (without history)
 func (s *Service) Prompt(ctx context.Context, prompt string, storeName string) (*PromptResponse, error) {
 	tool := &genai.Tool{
 		FileSearch: &genai.FileSearch{
@@ -218,6 +218,50 @@ func (s *Service) Prompt(ctx context.Context, prompt string, storeName string) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate content: %w", err)
 	}
+
+	return s.parseResponse(resp), nil
+}
+
+// PromptWithHistory sends a prompt to the model with conversation history and access to the specified store
+func (s *Service) PromptWithHistory(ctx context.Context, prompt string, storeName string, history interface{}) (*PromptResponse, error) {
+	tool := &genai.Tool{
+		FileSearch: &genai.FileSearch{
+			FileSearchStoreNames: []string{storeName},
+		},
+	}
+
+	// Build the full prompt with conversation history
+	fullPrompt := prompt
+	if history != nil {
+		// History is passed as []HistoryMessage from handler
+		if historySlice, ok := history.([]interface{}); ok && len(historySlice) > 0 {
+			contextStr := "Previous conversation:\n"
+			for _, msg := range historySlice {
+				if msgMap, ok := msg.(map[string]interface{}); ok {
+					role := msgMap["role"]
+					content := msgMap["content"]
+					contextStr += fmt.Sprintf("%s: %s\n", role, content)
+				}
+			}
+			fullPrompt = contextStr + "\nCurrent question: " + prompt
+		}
+	}
+
+	resp, err := s.client.Models.GenerateContent(ctx, s.modelName,
+		genai.Text(fullPrompt),
+		&genai.GenerateContentConfig{
+			Tools: []*genai.Tool{tool},
+		},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate content: %w", err)
+	}
+
+	return s.parseResponse(resp), nil
+}
+
+// parseResponse extracts the response data from the Gemini API response
+func (s *Service) parseResponse(resp *genai.GenerateContentResponse) *PromptResponse {
 
 	response := &PromptResponse{
 		Parts:     make([]string, 0),
@@ -282,5 +326,5 @@ func (s *Service) Prompt(ctx context.Context, prompt string, storeName string) (
 		}
 	}
 
-	return response, nil
+	return response
 }
