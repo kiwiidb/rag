@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CAO Documentatie - Overzicht</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+            color: #333;
+            padding: 20px;
+        }
+        .header h1 {
+            font-size: 20px;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        .header p {
+            opacity: 0.6;
+            font-size: 13px;
+        }
+        .nav {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .nav a {
+            color: #333;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            margin-right: 10px;
+            transition: background 0.2s;
+        }
+        .nav a:hover {
+            background: #f0f0f0;
+        }
+        .nav a.active {
+            background: #333;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .store {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .store-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .store-name {
+            font-size: 18px;
+            font-weight: 500;
+            color: #333;
+        }
+        .store-meta {
+            font-size: 12px;
+            color: #666;
+        }
+        .documents {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .document {
+            background: #fafafa;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            padding: 15px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .document:hover {
+            background: #f0f0f0;
+            border-color: #d0d0d0;
+        }
+        .document-name {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+        .document-meta {
+            font-size: 11px;
+            color: #999;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .error {
+            background: #fff5f5;
+            color: #d32f2f;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>CAO Documentatie</h1>
+        <p>Beheer en bekijk CAO-documenten</p>
+    </div>
+
+    <div class="nav">
+        <a href="/" class="active">Documenten</a>
+        <a href="/chat">Chat Interface</a>
+    </div>
+
+    <div class="container">
+        <div id="content">
+            <div class="loading">Documenten laden...</div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStoresAndDocuments() {
+            const contentDiv = document.getElementById('content');
+
+            try {
+                // Fetch all stores
+                const storesResponse = await fetch('/stores');
+                const stores = await storesResponse.json();
+
+                if (!stores || stores.length === 0) {
+                    contentDiv.innerHTML = '<div class="empty">Geen stores gevonden</div>';
+                    return;
+                }
+
+                contentDiv.innerHTML = '';
+
+                // For each store, fetch its documents
+                for (const store of stores) {
+                    const storeDiv = document.createElement('div');
+                    storeDiv.className = 'store';
+
+                    const storeHeader = document.createElement('div');
+                    storeHeader.className = 'store-header';
+                    storeHeader.innerHTML = `
+                        <div>
+                            <div class="store-name">${store.DisplayName || store.Name}</div>
+                            <div class="store-meta">Store: ${store.Name}</div>
+                        </div>
+                        <div class="store-meta">
+                            ${new Date(store.CreateTime).toLocaleDateString('nl-NL')}
+                        </div>
+                    `;
+                    storeDiv.appendChild(storeHeader);
+
+                    // Fetch documents for this store
+                    try {
+                        const docsResponse = await fetch(`/documents?storeName=${encodeURIComponent(store.Name)}`);
+                        const documents = await docsResponse.json();
+
+                        if (documents && documents.length > 0) {
+                            const documentsDiv = document.createElement('div');
+                            documentsDiv.className = 'documents';
+
+                            documents.forEach(doc => {
+                                const docDiv = document.createElement('div');
+                                docDiv.className = 'document';
+
+                                // Check if document has source URL
+                                const hasSourceURL = doc.CustomMetadata && doc.CustomMetadata.source_url;
+
+                                docDiv.innerHTML = `
+                                    <div class="document-name">${doc.DisplayName || doc.Name}</div>
+                                    <div class="document-meta">
+                                        ${doc.MIMEType || 'application/pdf'} •
+                                        ${doc.SizeBytes ? (doc.SizeBytes / 1024).toFixed(0) + ' KB' : 'Unknown size'}
+                                        ${hasSourceURL ? ' • 📄 Beschikbaar' : ''}
+                                    </div>
+                                `;
+
+                                if (hasSourceURL) {
+                                    docDiv.onclick = () => downloadDocument(store.Name, doc.Name);
+                                } else {
+                                    docDiv.onclick = () => viewDocument(doc);
+                                }
+
+                                documentsDiv.appendChild(docDiv);
+                            });
+
+                            storeDiv.appendChild(documentsDiv);
+                        } else {
+                            const emptyDiv = document.createElement('div');
+                            emptyDiv.className = 'empty';
+                            emptyDiv.textContent = 'Geen documenten in deze store';
+                            storeDiv.appendChild(emptyDiv);
+                        }
+                    } catch (error) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'error';
+                        errorDiv.textContent = 'Fout bij laden van documenten: ' + error.message;
+                        storeDiv.appendChild(errorDiv);
+                    }
+
+                    contentDiv.appendChild(storeDiv);
+                }
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="error">Fout bij laden van stores: ${error.message}</div>`;
+            }
+        }
+
+        function downloadDocument(storeName, documentName) {
+            // Open download URL in new tab
+            const url = `/download?storeName=${encodeURIComponent(storeName)}&documentName=${encodeURIComponent(documentName)}`;
+            window.open(url, '_blank');
+        }
+
+        function viewDocument(doc) {
+            alert(`Document: ${doc.DisplayName}\n\nName: ${doc.Name}\nMIME Type: ${doc.MIMEType || 'application/pdf'}\nSize: ${doc.SizeBytes ? (doc.SizeBytes / 1024).toFixed(0) + ' KB' : 'Unknown'}\n\nDit document heeft geen bron-URL en kan alleen worden geraadpleegd via de chat interface.`);
+        }
+
+        // Load on page load
+        loadStoresAndDocuments();
+    </script>
+</body>
+</html>
