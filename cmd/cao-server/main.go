@@ -40,6 +40,7 @@ func main() {
 	http.HandleFunc("/query", handler.Query)
 	http.HandleFunc("/stores", handler.ListStoresHandler)
 	http.HandleFunc("/documents", handler.ListDocumentsHandler)
+	http.HandleFunc("/download", handler.DownloadDocumentHandler)
 
 	// Health check endpoint
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -47,12 +48,15 @@ func main() {
 		w.Write([]byte("OK"))
 	})
 
-	// Serve interactive chat interface at root
+	// Serve pages
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
+		http.ServeFile(w, r, "cmd/cao-server/templates/index.html")
+	})
+	http.HandleFunc("/chat", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "cmd/cao-server/templates/chat.html")
 	})
 

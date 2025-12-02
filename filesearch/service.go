@@ -59,10 +59,11 @@ type Store struct {
 
 // Document represents a document in a store
 type Document struct {
-	Name        string
-	DisplayName string
-	CreateTime  string
-	UpdateTime  string
+	Name           string
+	DisplayName    string
+	CreateTime     string
+	UpdateTime     string
+	CustomMetadata map[string]string
 }
 
 // CreateStore creates a new file search store
@@ -129,11 +130,18 @@ func (s *Service) ListDocuments(ctx context.Context, storeName string) ([]*Docum
 
 	documents := make([]*Document, 0, len(docList.Items))
 	for _, doc := range docList.Items {
+		// Extract custom metadata
+		metadata := make(map[string]string)
+		for _, cm := range doc.CustomMetadata {
+			metadata[cm.Key] = cm.StringValue
+		}
+
 		documents = append(documents, &Document{
-			Name:        doc.Name,
-			DisplayName: doc.DisplayName,
-			CreateTime:  doc.CreateTime.String(),
-			UpdateTime:  doc.UpdateTime.String(),
+			Name:           doc.Name,
+			DisplayName:    doc.DisplayName,
+			CreateTime:     doc.CreateTime.String(),
+			UpdateTime:     doc.UpdateTime.String(),
+			CustomMetadata: metadata,
 		})
 	}
 
@@ -142,16 +150,31 @@ func (s *Service) ListDocuments(ctx context.Context, storeName string) ([]*Docum
 
 // UploadDocument uploads a document to a store using a reader
 func (s *Service) UploadDocument(ctx context.Context, reader io.Reader, fileName string, storeName string) (*Document, error) {
-	_, err := s.client.FileSearchStores.UploadToFileSearchStore(ctx, reader, storeName, &genai.UploadToFileSearchStoreConfig{
+	return s.UploadDocumentWithURL(ctx, reader, fileName, storeName, "")
+}
+
+// UploadDocumentWithURL uploads a document with an optional source URL stored in metadata
+func (s *Service) UploadDocumentWithURL(ctx context.Context, reader io.Reader, fileName string, storeName string, sourceURL string) (*Document, error) {
+	config := &genai.UploadToFileSearchStoreConfig{
 		DisplayName: fileName,
-		MIMEType:    "application/pdf", // Default to PDF, could be parameterized if needed
-	})
+		MIMEType:    "application/pdf",
+	}
+
+	// Add source URL as custom metadata if provided
+	if sourceURL != "" {
+		config.CustomMetadata = []*genai.CustomMetadata{
+			{
+				Key:         "source_url",
+				StringValue: sourceURL,
+			},
+		}
+	}
+
+	_, err := s.client.FileSearchStores.UploadToFileSearchStore(ctx, reader, storeName, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload document: %w", err)
 	}
 
-	// Return a document with the display name
-	// Note: The actual Name field would need to be retrieved from listing documents
 	return &Document{
 		DisplayName: fileName,
 	}, nil

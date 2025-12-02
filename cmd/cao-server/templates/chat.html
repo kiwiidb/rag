@@ -33,6 +33,26 @@
             opacity: 0.6;
             font-size: 13px;
         }
+        .nav {
+            background: white;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .nav a {
+            color: #333;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            margin-right: 10px;
+            transition: background 0.2s;
+        }
+        .nav a:hover {
+            background: #f0f0f0;
+        }
+        .nav a.active {
+            background: #333;
+            color: white;
+        }
         .container {
             flex: 1;
             display: flex;
@@ -213,6 +233,11 @@
     <div class="header">
         <h1>CAO Documentatie</h1>
         <p>Stel vragen over CAO-documenten in natuurlijke taal</p>
+    </div>
+
+    <div class="nav">
+        <a href="/">Documenten</a>
+        <a href="/chat" class="active">Chat Interface</a>
     </div>
 
     <div class="container">

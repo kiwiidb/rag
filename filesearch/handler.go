@@ -182,3 +182,55 @@ func (h *Handler) ListDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(docs)
 }
+
+// DownloadDocumentHandler handles GET requests to download a document from its source URL
+// GET /download?storeName=NAME&documentName=NAME
+func (h *Handler) DownloadDocumentHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	storeName := r.URL.Query().Get("storeName")
+	documentName := r.URL.Query().Get("documentName")
+
+	if storeName == "" || documentName == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "storeName and documentName query parameters are required",
+		})
+		return
+	}
+
+	// Get all documents in the store
+	docs, err := h.service.ListDocuments(r.Context(), storeName)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Failed to list documents: " + err.Error(),
+		})
+		return
+	}
+
+	// Find the document
+	var sourceURL string
+	for _, doc := range docs {
+		if doc.Name == documentName || doc.DisplayName == documentName {
+			if url, ok := doc.CustomMetadata["source_url"]; ok {
+				sourceURL = url
+				break
+			}
+		}
+	}
+
+	if sourceURL == "" {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{
+			"error": "Document not found or source URL not available",
+		})
+		return
+	}
+
+	// Redirect to the source URL
+	http.Redirect(w, r, sourceURL, http.StatusTemporaryRedirect)
+}

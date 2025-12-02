@@ -98,8 +98,8 @@ func main() {
 			continue
 		}
 
-		// Upload to file search store
-		_, err = service.UploadDocument(ctx, reader, fileName, store.Name)
+		// Upload to file search store with source URL
+		_, err = service.UploadDocumentWithURL(ctx, reader, fileName, store.Name, url)
 		if err != nil {
 			log.Printf("Warning: Failed to upload %s: %v", fileName, err)
 			continue
